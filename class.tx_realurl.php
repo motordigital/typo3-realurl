@@ -81,6 +81,22 @@ class tx_realurl extends tx_realurl_baseclass {
 	var $host = ''; // Current host name. Set in setConfig()
 	
 	/**
+	 * save the current working mode
+	 */
+	const MODE_NONE = '';
+	const MODE_ENCODE = 'encode';
+	const MODE_DECODE = 'decode';
+	
+	/**
+	 * sets the current mode
+	 *
+	 * @param string $mode        	
+	 */
+	public function setMode($mode = self::MODE_NONE) {
+		$this->currentMode = $mode;
+	}
+	
+	/**
 	 * Additional values to use when creating chash cache.
 	 * This works, for
 	 * example, when using _DOMAINS and cHash for links that do not really
@@ -220,9 +236,10 @@ class tx_realurl extends tx_realurl_baseclass {
 	 */
 	public function encodeSpURL(&$params) {
 		$this->devLog ( 'Entering encodeSpURL for ' . $params ['LD'] ['totalURL'] );
-		
+		$this->setMode ( self::MODE_ENCODE );
 		if ($this->isInWorkspace ()) {
 			$this->devLog ( 'Workspace detected. Not doing anything!' );
+			$this->setMode ();
 			return;
 		}
 		
@@ -233,6 +250,7 @@ class tx_realurl extends tx_realurl_baseclass {
 				 * @noinspection PhpUndefinedMethodInspection
 				 */
 				$GLOBALS ['TT']->setTSlogMessage ( 'SimulateStaticDocuments is enabled. RealURL disables itself.', 2 );
+				$this->setMode ();
 				return;
 			}
 			
@@ -242,6 +260,7 @@ class tx_realurl extends tx_realurl_baseclass {
 				 * @noinspection PhpUndefinedMethodInspection
 				 */
 				$GLOBALS ['TT']->setTSlogMessage ( 'RealURL is not enabled in TS setup. Finished.' );
+				$this->setMode ();
 				return;
 			}
 		}
@@ -249,6 +268,7 @@ class tx_realurl extends tx_realurl_baseclass {
 		// Checking prefix
 		$prefix = $GLOBALS ['TSFE']->absRefPrefix . $this->prefixEnablingSpURL;
 		if (substr ( $params ['LD'] ['totalURL'], 0, strlen ( $prefix ) ) != $prefix) {
+			$this->setMode ();
 			return;
 		}
 		
@@ -330,6 +350,7 @@ class tx_realurl extends tx_realurl_baseclass {
 		
 		// Setting the encoded URL in the LD key of the params array - that value is passed by reference and thus returned to the linkData function!
 		$params ['LD'] ['totalURL'] = $newUrl;
+		$this->setMode ();
 	}
 	
 	/**
@@ -763,7 +784,7 @@ class tx_realurl extends tx_realurl_baseclass {
 		$hash = md5 ( $urlData . '///' . serialize ( $internalExtras ) );
 		
 		if (! $setEncodedURL) { // Asking for cached encoded URL:
-		                       
+		                        
 			// First, check memory, otherwise ask database
 			if (! isset ( $GLOBALS ['TSFE']->applicationData ['tx_realurl'] ['_CACHE'] [$hash] ) && $this->extConf ['init'] ['enableUrlEncodeCache']) {
 				/**
@@ -783,7 +804,7 @@ class tx_realurl extends tx_realurl_baseclass {
 			}
 			return $GLOBALS ['TSFE']->applicationData ['tx_realurl'] ['_CACHE'] [$hash];
 		} else { // Setting encoded URL in cache:
-		       // No caching if FE editing is enabled!
+		         // No caching if FE editing is enabled!
 			if (! $this->isBEUserLoggedIn ()) {
 				$GLOBALS ['TSFE']->applicationData ['tx_realurl'] ['_CACHE'] [$hash] = $setEncodedURL;
 				
@@ -952,7 +973,7 @@ class tx_realurl extends tx_realurl_baseclass {
 	 */
 	public function decodeSpURL($params) {
 		$this->devLog ( 'Entering decodeSpURL' );
-		
+		$this->setMode ( self::MODE_DECODE );
 		// Setting parent object reference (which is $GLOBALS['TSFE'])
 		$this->pObj = &$params ['pObj'];
 		
@@ -1076,6 +1097,7 @@ class tx_realurl extends tx_realurl_baseclass {
 				}
 			}
 		}
+		$this->setMode ();
 	}
 	
 	/**
@@ -2299,7 +2321,7 @@ class tx_realurl extends tx_realurl_baseclass {
 		// Convert some special tokens to the space character
 		$space = $cfg ['useUniqueCache_conf'] ['spaceCharacter'] ? substr ( $cfg ['useUniqueCache_conf'] ['spaceCharacter'], 0, 1 ) : '_';
 		$processedTitle = strtr ( $processedTitle, ' -+_', $space . $space . $space . $space ); // convert spaces
-		                                                                                     
+		                                                                                        
 		// Convert extended letters to ascii equivalents
 		$processedTitle = $GLOBALS ['TSFE']->csConvObj->specCharsToASCII ( $charset, $processedTitle );
 		
